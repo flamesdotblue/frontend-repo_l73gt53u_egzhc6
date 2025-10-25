@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
-import ItemForm from './components/ItemForm'
-import ItemList from './components/ItemList'
+import { useEffect, useState } from 'react'
+import Header from './components/Header'
 import ConsumptionForm from './components/ConsumptionForm'
-import DailyLog from './components/DailyLog'
+import DailySummary from './components/DailySummary'
+import AddItemModal from './components/AddItemModal'
 
 export default function App() {
   const [items, setItems] = useState([])
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0,10))
   const [dailyData, setDailyData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [preferredItemId, setPreferredItemId] = useState('')
 
   const API_BASE = import.meta.env.VITE_BACKEND_URL || ''
 
@@ -29,51 +31,44 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    loadItems()
-  }, [])
+  useEffect(() => { loadItems() }, [])
+  useEffect(() => { loadDaily() }, [selectedDate])
 
-  useEffect(() => {
-    loadDaily()
-  }, [selectedDate])
+  function handleItemCreated(newItem) {
+    // Refresh items, and prefer the newly created one in the selector
+    loadItems()
+    setPreferredItemId(newItem.id)
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-emerald-50 text-gray-900">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-emerald-100 via-white to-sky-100 text-gray-900">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-bold">Daily Protein Tracker</h1>
-          <div className="flex items-center gap-3">
-            <label htmlFor="date" className="text-sm text-gray-600">Date</label>
-            <input
-              id="date"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 rounded-md border bg-white"
-            />
-          </div>
-        </header>
+        <Header selectedDate={selectedDate} onChangeDate={setSelectedDate} />
 
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Define Items</h2>
-          <ItemForm onCreated={() => loadItems()} />
-          <ItemList items={items} />
-        </section>
+        <ConsumptionForm
+          items={items}
+          date={selectedDate}
+          onAdded={loadDaily}
+          onOpenAddItem={() => setModalOpen(true)}
+          preferredItemId={preferredItemId}
+        />
 
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Add Daily Consumption</h2>
-          <ConsumptionForm items={items} date={selectedDate} onAdded={() => loadDaily()} />
-          {loading ? (
-            <div className="text-sm text-gray-600">Loading...</div>
-          ) : (
-            <DailyLog date={selectedDate} data={dailyData} onRefresh={loadDaily} />
-          )}
-        </section>
+        {loading ? (
+          <div className="text-sm text-gray-600">Loading summary...</div>
+        ) : (
+          <DailySummary date={selectedDate} data={dailyData} onRefresh={loadDaily} />
+        )}
 
         <footer className="pt-6 text-center text-sm text-gray-500">
-          Track your protein intake by defining items once and logging what you eat each day.
+          Keep it simple: pick an item, log it, and watch your protein add up.
         </footer>
       </div>
+
+      <AddItemModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={handleItemCreated}
+      />
     </div>
   )
 }
